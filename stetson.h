@@ -12,9 +12,9 @@ make_delta(real_type *y, real_type *err, real_type *delta, int N);
 
 real_type 
 stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
-	          weight_type WEIGHTING, int N);
+              weight_type WEIGHTING, int N);
 
 real_type
 stetson_j_cpu(real_type *x, real_type *y, real_type *err, 
-	          weight_type WEIGHTING, int N);
+              weight_type WEIGHTING, int N);
 #endif

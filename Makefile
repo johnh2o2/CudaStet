@@ -3,16 +3,17 @@
 # Build script for project
 #
 ################################################################################
-ARCH		:= 52
+ARCH    	    := 52
 
 # Add source files here
-NAME            := stetson_cuda
+NAME            := CudaStet
 ################################################################################
 # Rules and targets
 NVCC=nvcc
 CC=g++
 
 CUDA_VERSION=7.5
+REAL_TYPE=float
 BLOCK_SIZE=256
 VERSION=1.0
 
@@ -25,23 +26,25 @@ BINDIR=.
 #OPTIMIZE_CPU=
 #OPTIMIZE_GPU=
 DEBUG=
-GDB_NVCC=-g -G
-GDB_CXX=-g
-REAL_TYPE=double
+#GDB_NVCC=-g -G
+#GDB_CXX=-g
+GDB_NVCC=
+GDB_CXX=
+
 #DEBUG=-DDEBUG
-#OPTIMIZE_CPU= -O3
-OPTIMIZE_CPU=
-#OPTIMIZE_GPU= -Xcompiler -O3 --use_fast_math
-OPTIMIZE_GPU=
+OPTIMIZE_CPU= -O3
+#OPTIMIZE_CPU=
+OPTIMIZE_GPU= -Xcompiler -O3 --use_fast_math
+#OPTIMIZE_GPU=
 DEFS := $(DEBUG) -DBLOCK_SIZE=$(BLOCK_SIZE) -DVERSION=\"$(VERSION)\" -Dreal_type=$(REAL_TYPE)
 NVCCFLAGS := $(GDB_NVCC) $(DEFS) $(OPTIMIZE_GPU) -Xcompiler -fopenmp -Xcompiler -fpic --gpu-architecture=compute_$(ARCH) --gpu-code=sm_$(ARCH),compute_$(ARCH) 
-CFLAGS := $(GDB_CXX) $(DEFS) -fPIC -fopenmp -Wall $(OPTIMIZE_CPU)
+CFLAGS := $(GDB_CXX) $(DEFS) -fPIC -Wall $(OPTIMIZE_CPU)
 
 CUDA_LIBS =`pkg-config --libs cudart-$(CUDA_VERSION)` 
 
 CUDA_INCLUDE =`pkg-config --cflags cudart-$(CUDA_VERSION)` 
 
-LIBS := -L$(LIBDIR) $(CUDA_LIBS) -lm -lgomp
+LIBS := -L$(LIBDIR) $(CUDA_LIBS) -lm
 
 ###############################################################################
 

@@ -20,12 +20,12 @@ inline void gpuAssert(cudaError_t code, const char *file, int line) {
 
 __host__ real_type
 stetson_j_kernel_cpu(real_type *x, real_type *delta,
-					 weight_function_t w, 
-		             void *weight_params, int N);
+    				 weight_function_t w, 
+    	             void *weight_params, int N);
 __global__ void
 stetson_j_kernel(real_type *x, real_type *delta, real_type *J, 
-	             real_type *W, weight_function_t w, 
-	             void *weight_params, int N);
+                 real_type *W, weight_function_t w, 
+                 void *weight_params, int N);
 
 
 
