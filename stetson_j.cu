@@ -1,10 +1,12 @@
+
+#include <stdlib.h>
+#include <math.h>
+
 #include "stetson.h"
 #include "stetson_kernel.h"
 #include "utils.h"
 #include "weighting.h"
 
-
-#define CUDA_CALL(x) x
 
 // z-scale the data
 void 
@@ -18,23 +20,14 @@ make_delta(real_type *y, real_type *err, real_type *delta, int N) {
 }
 
 
-// compute Stetson J index (Stetson 1996)
-real_type 
-stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
-	          weight_type WEIGHTING, int N){
-
-	// necessary?
-	cudaDeviceSynchronize();
-
-	// WEIGHTING FUNCTIONS
-	// get references to weighting functions
-	weight_function_gpu_t weight_func;
-	void *d_params = NULL;
+void 
+get_weighting_gpu(real_type *x, int N, weight_type WEIGHTING, 
+				   void **params, weight_function_t *w){
 
 	if (WEIGHTING & EXP) {
 		CUDA_CALL(
-			cudaMemcpyFromSymbol(&weight_func, p_exp_weighting_gpu, 
-		                        sizeof(weight_function_gpu_t) )
+			cudaMemcpyFromSymbol(w, p_exp_weighting, 
+		                        sizeof(weight_function_t) )
 		);
 
 		// set up parameters on host
@@ -51,19 +44,70 @@ stetson_j_gpu(real_type *x, real_type *y, real_type *err,
 		// param 2: exponent n: exp(-|t2 - t1|^n / dt^n)
 		h_params[1] = 1;
 
-		
-		CUDA_CALL(cudaMemcpy(&d_params, h_params, 
+		CUDA_CALL(cudaMalloc(params, 2 * sizeof(real_type)));
+		//CUDA_CALL(cudaThreadSynchronize());
+		CUDA_CALL(cudaMemcpy((*params), h_params, 
 			                       2 * sizeof(real_type), 
 			                       cudaMemcpyHostToDevice ));
-
 		free(h_params);
 	}
 	else if (WEIGHTING & CONSTANT) {
 		CUDA_CALL(
-			cudaMemcpyFromSymbol(&weight_func, p_constant_weighting_gpu, 
-		                        sizeof(weight_function_gpu_t) )
+			cudaMemcpyFromSymbol(w, p_constant_weighting, 
+		                        sizeof(weight_function_t) )
 		);
+
+		params = NULL;
+
 	}
+
+}
+
+void 
+get_weighting_cpu(real_type *x, int N, weight_type WEIGHTING,
+				   void **params, weight_function_t *w){
+
+	if (WEIGHTING & EXP) {
+		// set up parameters on host
+		real_type *h_params = (real_type *) malloc(2 * sizeof(real_type));
+
+		// get array of t_i - t_{i-1}
+		real_type dt[N-1];
+		for(int i = 0; i < N - 1; i++) 
+			dt[i] = x[i+1] - x[i];
+
+		// param 1: inverse of mean(dt)
+		h_params[0] = 1./mean(dt, N-1);
+
+		// param 2: exponent n: exp(-|t2 - t1|^n / dt^n)
+		h_params[1] = 1;
+
+		(*params) = (void *) h_params;
+		(*w) = &exp_weighting;
+
+	}
+	else if (WEIGHTING & CONSTANT) {
+		(*w) = &constant_weighting;
+		params = NULL;
+	}
+
+}
+
+				  
+
+// compute Stetson J index (Stetson 1996)
+real_type 
+stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
+	          weight_type WEIGHTING, int N){
+
+	// necessary?
+	cudaDeviceSynchronize();
+
+	// WEIGHTING FUNCTIONS
+	weight_function_t weight_func;
+	void *d_params = NULL;
+
+	get_weighting_gpu(x, N, WEIGHTING, &d_params, &weight_func);
 	//////
 
 	
@@ -107,11 +151,27 @@ stetson_j_gpu(real_type *x, real_type *y, real_type *err,
 }
 
 real_type
-stetson_j_cpu(real_type *y, real_type *err, int N) {
+stetson_j_cpu(real_type *x, real_type *y, real_type *err, 
+	          weight_type WEIGHTING, int N){
+
+	// scale y values by mean and variance
 	real_type *delta = (real_type *) malloc(N * sizeof(real_type));
 	make_delta(y, err, delta, N);
-	
-	return stetson_j_kernel_cpu(delta, N);
+
+	// get weighting function and parameters
+	weight_function_t weight_func;
+	void *params = NULL;
+
+	get_weighting_cpu(x, N, WEIGHTING, &params, &weight_func);
+
+	// compute J
+	real_type J = stetson_j_kernel_cpu(x, delta, weight_func, 
+		                               params, N);
+
+	// free weight function params
+	if(params != NULL) free(params);
+
+	return J;
 }
 /*
 real_type

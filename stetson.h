@@ -7,10 +7,14 @@ enum weight_type {
   CONSTANT = 0x02,
 };
 
-void make_delta(real_type *y, real_type *err, real_type *delta, int N);
+void 
+make_delta(real_type *y, real_type *err, real_type *delta, int N);
 
-real_type stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
+real_type 
+stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
 	          weight_type WEIGHTING, int N);
 
-real_type stetson_j_cpu(real_type *y, real_type *err, int N);
+real_type
+stetson_j_cpu(real_type *x, real_type *y, real_type *err, 
+	          weight_type WEIGHTING, int N);
 #endif

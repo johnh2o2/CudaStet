@@ -7,27 +7,27 @@
 #include "stetson.h"
 
 #define rmax 1000000
-#define Random ((float) (rand() % rmax))/rmax
+#define Random ((real_type) (rand() % rmax))/rmax
 #define twopi (2.0 * 3.14159265358979323846)
 
 // random normal 
-float randnorm() {
-    float u1 = Random;
-    float u2 = 1.0 - u1;
-    float r  = sqrt(-2 * log(u1));
-    float th = twopi * u2;
+real_type randnorm() {
+    real_type u1 = Random;
+    real_type u2 = 1.0 - u1;
+    real_type r  = sqrt(-2 * log(u1));
+    real_type th = twopi * u2;
     return r * cos(th);
 }
 
 // generates unequal timing array
-float *
+real_type *
 generateRandomTimes(int N) {
-	float *x = (float *) malloc( N * sizeof(float));
+	real_type *x = (real_type *) malloc( N * sizeof(real_type));
 	x[0] = 0.;
 	for (int i = 1; i < N; i++)
 		x[i] = x[i - 1] + Random;
 
-	float xmax = x[N - 1];
+	real_type xmax = x[N - 1];
 	for (int i = 0; i < N; i++)
 		x[i] = (x[i] / xmax) - 0.5;
 
@@ -35,9 +35,9 @@ generateRandomTimes(int N) {
 }
 
 // generates a periodic signal
-float *
-generateSignal(float *x, float f, float phi, int N) {
-	float *signal = (float *) malloc( N * sizeof(float));
+real_type *
+generateSignal(real_type *x, real_type f, real_type phi, int N) {
+	real_type *signal = (real_type *) malloc( N * sizeof(real_type));
 
 	for (int i = 0; i < N; i++)
 		signal[i] = cos((x[i] + 0.5) * f * twopi - phi) + randnorm();
@@ -49,8 +49,8 @@ generateSignal(float *x, float f, float phi, int N) {
 // Do timing tests
 void timing(int Nmin, int Nmax, int Ntests) {
 	int      n, dN = (Nmax - Nmin) / Ntests;
-	float    *x, *f, *err, *w;
-	float J;
+	real_type    *x, *f, *err, *w;
+	
 	clock_t  start, dt;
 
 	for (int i = 0; i < Ntests; i++) {
@@ -60,8 +60,8 @@ void timing(int Nmin, int Nmax, int Ntests) {
 		x = generateRandomTimes(n);
 		f = generateSignal(x, 10., 0.5, n);
 
-		err = (float *) malloc(n * sizeof(float));
-		w   = (float *) malloc(n * sizeof(float));
+		err = (real_type *) malloc(n * sizeof(real_type));
+		w   = (real_type *) malloc(n * sizeof(real_type));
 		for (int j = 0; j < n; j++) {
 			err[j] = 1.0;
 			w[j]   = 1.0;
@@ -69,26 +69,27 @@ void timing(int Nmin, int Nmax, int Ntests) {
 
 		// calculate Stetson J 
 		start = clock();
+		//real_type J = 1.0;
 		//J = StetsonJ(f, err, n);
 		dt = clock() - start;
 		
 		// output
-		printf("%-10d %-10.3e\n", n, ((float) dt / CLOCKS_PER_SEC));
+		printf("%-10d %-10.3e\n", n, ((real_type) dt / CLOCKS_PER_SEC));
 
 		free(x); free(f); free(w); free(err);
 	}
 }
 
 // simple test
-void simple(int N, float f) {
-	float *x, *y, *err;
+void simple(int N, real_type f) {
+	real_type *x, *y, *err;
 	
 	x = generateRandomTimes(N);
 	y = generateSignal(x, f, 0., N);
 
 	
 
-	err = (float *) malloc(N * sizeof(float));
+	err = (real_type *) malloc(N * sizeof(real_type));
 	for (int i = 0; i < N; i++) 
 		err[i] = 1.0;
 	
@@ -101,9 +102,15 @@ void simple(int N, float f) {
 		fprintf(out, "%e %e %e\n", x[i], y[i], err[i]);
 	fclose(out);
 
-	fprintf(stdout, "Stetson J (CUDA) : %e\n", stetson_j_gpu(x, y, err, 
-																CONSTANT, N));
-	fprintf(stdout, "Stetson J (CPU)  : %e\n", stetson_j_cpu(y, err, N));
+	fprintf(stdout, "Stetson J -- CONSTANT WEIGHTING\n");
+	fprintf(stdout, "CPU  : %e\n", stetson_j_cpu(x, y, err, CONSTANT, N));
+	fprintf(stdout, "CUDA : %e\n", stetson_j_gpu(x, y, err, CONSTANT, N));
+	
+	fprintf(stdout, "Stetson J -- EXPONENTIAL WEIGHTING\n");
+	fprintf(stdout, "CPU  : %e\n", stetson_j_cpu(x, y, err, EXP, N));
+	fprintf(stdout, "CUDA : %e\n", stetson_j_gpu(x, y, err, EXP, N));
+
+	
 	free(x); free(y); free(err); 
 }
 
@@ -118,6 +125,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "ntests : Number of runs\n");
 		exit(EXIT_FAILURE);
 	}
+
+	// initialize random number generator
+	srand(time(NULL));
 
 	if (argv[1][0] == 's')
 		simple(atoi(argv[2]), atof(argv[3]));

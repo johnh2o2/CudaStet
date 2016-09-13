@@ -25,14 +25,15 @@ BINDIR=.
 #OPTIMIZE_CPU=
 #OPTIMIZE_GPU=
 DEBUG=
-#GDB_NVCC=-g -G
-#GDB_CXX=-g
-GDB_NVCC=
-GDB_CXX=
+GDB_NVCC=-g -G
+GDB_CXX=-g
+REAL_TYPE=double
 #DEBUG=-DDEBUG
-OPTIMIZE_CPU= -O3
-OPTIMIZE_GPU= -Xcompiler -O3 --use_fast_math
-DEFS := $(DEBUG) -DBLOCK_SIZE=$(BLOCK_SIZE) -DVERSION=\"$(VERSION)\" -Dreal_type=float
+#OPTIMIZE_CPU= -O3
+OPTIMIZE_CPU=
+#OPTIMIZE_GPU= -Xcompiler -O3 --use_fast_math
+OPTIMIZE_GPU=
+DEFS := $(DEBUG) -DBLOCK_SIZE=$(BLOCK_SIZE) -DVERSION=\"$(VERSION)\" -Dreal_type=$(REAL_TYPE)
 NVCCFLAGS := $(GDB_NVCC) $(DEFS) $(OPTIMIZE_GPU) -Xcompiler -fopenmp -Xcompiler -fpic --gpu-architecture=compute_$(ARCH) --gpu-code=sm_$(ARCH),compute_$(ARCH) 
 CFLAGS := $(GDB_CXX) $(DEFS) -fPIC -fopenmp -Wall $(OPTIMIZE_CPU)
 
