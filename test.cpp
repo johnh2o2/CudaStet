@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     }
 
     // initialize random number generator
-    srand(time(NULL));
+    //srand(time(NULL));
 
     if (argv[1][0] == 's')
     	simple(atoi(argv[2]), atof(argv[3]));

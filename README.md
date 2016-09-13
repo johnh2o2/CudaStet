@@ -21,62 +21,90 @@ To install:
 
 3. Run `make` to generate a binary that you can run for testing. This is mainly for my own debugging purposes, but you can inspect the code to get an idea of how to call the `stetson_j_cpu` and `stetson_j_gpu` functions.
 
+To call `stetson_j_{gpu, cpu}`:
+-------------------------------
+Arguments (in order):
+	* `real_type *x` : values for independent variable
+	* `real_type *y` : values for dependent variable
+	* `real_type *err`	: values for uncertainty of dependent variable
+	* `weight_type WEIGHTING` : Must be one of
+		* `CONSTANT` : all pairs of observations are weighted equally
+		* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / mean(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme.
+
+
+Notes
+-----
+
+* Be careful with single precision. If you're using the exponential
+  weighting scheme, the accuracy for ~50,000 datapoints is about 10^(-3) for both the CPU and GPU variants. For a constant weighting
+  scheme, however, the CPU variant is very inaccurate (off by factors of 100 or more) at 50,000 datapoints, while the GPU variant remains accurate to a factor of 10^(-3).
+
+  
 Goals for the future
 --------------------
 
 * Python bindings with Swig
 * Addition of Stetson K and L variability indices
 * Adding configure script to simplify the install process
-* 
 
 Timing 
 ------
 
-Some tests run on an Ubuntu 14.04 desktop with an i7-5930K overclocked to 4.5GHz, and a 980 Ti graphics card.
+Some tests run on an Ubuntu 14.04 desktop with an i7-5930K overclocked to 4.5GHz, and a 980 Ti graphics card. For these 
+timing tests, `CudaStet` was compiled with single precision 
+and using the `-O3` optimization flag for `g++` and 
+`--use_fast_math` for `nvcc`.
+
+Read as: 
+`N`    `dt`
+
+Where `N` is the number of data points, `dt` is the execution
+time in seconds. 
 
 ```
 timing : (CPU, EXPONENTIAL)
-10         1.900e-05 
-2009       1.835e-01 
-4008       4.209e-01 
-6007       8.432e-01 
-8006       1.347e+00 
-10005      2.102e+00 
-12004      3.018e+00 
-14003      4.099e+00 
-16002      5.332e+00 
-18001      6.754e+00 
+10         9.000e-06 
+1009       3.612e-02 
+2008       9.482e-02 
+3007       1.367e-01 
+4006       1.922e-01 
+5005       2.986e-01 
+6004       4.134e-01 
+7003       4.819e-01 
+8002       6.265e-01 
+9001       7.888e-01 
 timing : (GPU, EXPONENTIAL)
-10         1.745e-01 
-2009       3.565e-03 
-4008       6.760e-03 
-6007       1.043e-02 
-8006       1.407e-02 
-10005      1.752e-02 
-12004      2.087e-02 
-14003      2.473e-02 
-16002      2.594e-02 
-18001      2.924e-02 
+10         1.648e-01 
+1009       1.351e-03 
+2008       2.490e-03 
+3007       3.450e-03 
+4006       4.739e-03 
+5005       5.822e-03 
+6004       7.672e-03 
+7003       8.494e-03 
+8002       9.271e-03 
+9001       1.066e-02 
 timing : (CPU, CONSTANT)
-10         2.000e-06 
-2009       4.124e-02 
-4008       1.665e-01 
-6007       3.707e-01 
-8006       5.630e-01 
-10005      8.821e-01 
-12004      1.269e+00 
-14003      1.717e+00 
-16002      2.254e+00 
-18001      2.883e+00 
+10         1.000e-06 
+1009       5.004e-03 
+2008       1.877e-02 
+3007       3.833e-02 
+4006       6.095e-02 
+5005       9.584e-02 
+6004       1.385e-01 
+7003       1.869e-01 
+8002       2.532e-01 
+9001       2.829e-01 
 timing : (GPU, CONSTANT)
-10         1.760e-04 
-2009       1.931e-03 
-4008       3.807e-03 
-6007       5.948e-03 
-8006       7.720e-03 
-10005      1.010e-02 
-12004      1.249e-02 
-14003      1.454e-02 
-16002      1.603e-02 
-18001      1.870e-02 
+10         1.740e-04 
+1009       9.020e-04 
+2008       1.727e-03 
+3007       3.200e-03 
+4006       4.346e-03 
+5005       4.290e-03 
+6004       5.602e-03 
+7003       7.210e-03 
+8002       7.446e-03 
+9001       8.685e-03 
+
 ```
