@@ -5,15 +5,17 @@ CudaStet
 Provides both CPU and GPU functions for the Stetson J statistic ([Stetson 1996](http://adsabs.harvard.edu/abs/1996PASP..108..851S)).
 
 Requires:
-	* [CUDA](http://www.nvidia.com/object/cuda_home_new.html)-enabled [device](https://developer.nvidia.com/cuda-gpus)
-	* [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) >= 7.5
-	* A suitable C++ compiler (e.g. `g++`)
+	
+* [CUDA](http://www.nvidia.com/object/cuda_home_new.html)-enabled [device](https://developer.nvidia.com/cuda-gpus)
+* [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) >= 7.5
+* A suitable C++ compiler (e.g. `g++`)
 
 To install:
 -----------
 
 1. Clone this repository
 2. Edit the Makefile accordingly
+	
 	* `ARCH` -- the Compute Capability number for your device, e.g. 5.2 becomes `52`
 	* `REAL_TYPE` -- you can switch between double and single precision by editing this Makefile variable to either `double` or `float`.
 	* `CUDA_VERSION` -- make sure you have the [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) installed; this code was developed using version 7.5
@@ -24,12 +26,13 @@ To install:
 To call `stetson_j_{gpu, cpu}`:
 -------------------------------
 Arguments (in order):
-	* `real_type *x` : values for independent variable
-	* `real_type *y` : values for dependent variable
-	* `real_type *err`	: values for uncertainty of dependent variable
-	* `weight_type WEIGHTING` : Must be one of
-		* `CONSTANT` : all pairs of observations are weighted equally
-		* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / mean(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme.
+	
+* `real_type *x` : values for independent variable
+* `real_type *y` : values for dependent variable
+* `real_type *err`	: values for uncertainty of dependent variable
+* `weight_type WEIGHTING` : Must be one of
+	* `CONSTANT` : all pairs of observations are weighted equally
+	* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / mean(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme.
 
 
 Notes
@@ -39,7 +42,7 @@ Notes
   weighting scheme, the accuracy for ~50,000 datapoints is about 10^(-3) for both the CPU and GPU variants. For a constant weighting
   scheme, however, the CPU variant is very inaccurate (off by factors of 100 or more) at 50,000 datapoints, while the GPU variant remains accurate to a factor of 10^(-3).
 
-  
+
 Goals for the future
 --------------------
 
