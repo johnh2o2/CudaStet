@@ -33,7 +33,7 @@ Arguments (in order):
 * `weight_type WEIGHTING` : Must be one of
 	* `CONSTANT` : all pairs of observations are weighted equally
 	* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / mean(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme.
-
+* `int N` : number of datapoints
 
 Notes
 -----
