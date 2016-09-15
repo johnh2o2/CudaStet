@@ -8,4 +8,7 @@ mean(real_type *x, int N);
 real_type 
 sum(real_type *x, int N);
 
+real_type
+median(real_type *x, int N);
+
 #endif

@@ -30,7 +30,7 @@ get_exp_params(real_type *x, int N, void **params) {
 		dt[i] = x[i+1] - x[i];
 
 	// param 1: inverse of mean(dt)
-	((real_type *)(*params))[0] = 1./mean(dt, N-1);
+	((real_type *)(*params))[0] = 1./median(dt, N-1);
 
 	// param 2: exponent n: exp(-|t2 - t1|^n / dt^n)
 	((real_type *)(*params))[1] = 1;
@@ -83,7 +83,6 @@ get_weighting_cpu(real_type *x, int N, weight_type WEIGHTING,
 }
 
     			  
-
 // compute Stetson J index (Stetson 1996)
 real_type 
 stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
@@ -168,3 +167,4 @@ stetson_k(real_type *y, real_type *err, int N){
 
 }
 */
+

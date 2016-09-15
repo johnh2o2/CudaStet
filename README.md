@@ -23,6 +23,24 @@ To install:
 
 3. Run `make` to generate a binary that you can run for testing. This is mainly for my own debugging purposes, but you can inspect the code to get an idea of how to call the `stetson_j_cpu` and `stetson_j_gpu` functions.
 
+
+To use the compiled binary
+--------------------------
+
+```
+usage: ./CudaStet <filename> <{s, l}> <skiprows>
+
+  filename      : path to datafile with either a list of filenames
+                  or a path to a single file containing 'x y yerr' 
+                  on each line
+  s             : single file
+  l             : list of files
+  skiprows      : number of rows to skip in the datafile
+```
+
+
+
+
 To call `stetson_j_{gpu, cpu}`:
 -------------------------------
 Arguments (in order):
@@ -32,7 +50,7 @@ Arguments (in order):
 * `real_type *err`	: values for uncertainty of dependent variable
 * `weight_type WEIGHTING` : Must be one of
 	* `CONSTANT` : all pairs of observations are weighted equally
-	* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / mean(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme.
+	* `EXP` : pairs of observations are exponentially suppressed by their distance in `x` (uses `exp(-|t1 - t2| / median(dt))`). See [Zhang _et. al._ 2003](http://adsabs.harvard.edu/abs/2003ChJAA...3..151Z) for a real-world application of this weighting scheme. Note however that Zhang et. al. 2003 used the mean function instead of the median.
 * `int N` : number of datapoints
 
 Notes
