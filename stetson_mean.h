@@ -4,7 +4,8 @@
 // default parameters
 #define APARAM 2.0
 #define BPARAM 2.0
-#define CRITERION 1E-4
+#define MAX_ITER 1000
+#define CRITERION 1E-3
 
 void
 stetson_adjust_weights(real_type *delta, real_type *win,

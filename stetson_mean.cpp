@@ -50,7 +50,10 @@ stetson_mean(real_type *y, real_type *yerr, const real_type a,
         normalize(weights, N);
 
         int done = 0;
+        int iter = 0;
         do {
+                iter += 1;
+
                 real_type mu = weighted_mean(y, weights, N);
 
                 // convert to delta
@@ -67,7 +70,18 @@ stetson_mean(real_type *y, real_type *yerr, const real_type a,
                 // set weights <- new_weights
                 memcpy(weights, new_weights, N * sizeof(real_type));
 
-        } while (!done);
+        } while (!done && iter < MAX_ITER);
+
+        if (!done){
+            fprintf(stderr, "stetson_mean ERR: maximum iterations reached,"
+                            " returning simple mean.\n");
+            free(weights);
+            free(new_weights);
+            free(delta);
+
+            return mean(y, N);
+        }
+
 
         real_type mu = weighted_mean(y, weights, N);
 

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "stetson.h"
 #include "stetson_mean.h"
 #include "utils.h"
@@ -9,21 +10,6 @@
 
 /** Increment in number of data samples. */
 static int INCR = 1000;
-
-/**
- * Sets the increment in data samples
- * for readDataFile().
- *
- * \param newval the new increment value.
- *
- * \return the old increment value.
- */
-int setReadDataFileIncrement(int newval)
-{
-  int old = INCR;
-  INCR = newval;
-  return old;
-}
 
 /**
  * Reads a line and stores it into a buffer.
@@ -58,7 +44,7 @@ void* xrealloc(void* p, size_t size)
 {
   void* q = realloc(p, size);
   if (!q){
-    fprintf(stderr, "not enough memory for reallocation");
+    fprintf(stderr, "not enough memory for reallocation\n");
     exit(EXIT_FAILURE);
   }
   return q;
@@ -100,6 +86,11 @@ ioflag read3colDataFile(const char* name, const int skiprows, real_type** t, rea
     fprintf(stderr, "Cannot open file %s\n", name);
     return IO_FAILURE;
   }
+  char fmt[12];
+  if (sizeof(real_type) == sizeof(double)) 
+      sprintf(fmt, "%%lf %%lf %%lf");
+  else
+      sprintf(fmt, "%%f %%f %%f");
 
   *t = NULL;
   *y = NULL;
@@ -139,8 +130,9 @@ ioflag read3colDataFile(const char* name, const int skiprows, real_type** t, rea
     if (*buffer == '#') /* skips line of comments */
       continue;
     
-    int retval = sscanf(buffer, "%lf %lf %lf", &(*t)[(*nlines)], 
-                                 &(*y)[(*nlines)], &(*w)[(*nlines)]);
+    
+    int retval = sscanf(buffer, fmt, &(*t)[(*nlines)], &(*y)[(*nlines)], 
+                                                       &(*w)[(*nlines)]);
     if (retval < 3){
       fprintf(stderr, "incorrect format of input file `%s'\n", name);
       return IO_FAILURE;
@@ -212,6 +204,100 @@ void check_io(ioflag fl, const char *task){
 
 }
 
+void
+run_batch( char **filenames, const int nfiles, const int skiprows, const int batch_size,
+            const size_t memlim, real_type **Jexp, real_type **Jcons ){
+
+    real_type *x, *y, *yerr;
+    real_type *xn, *yn, *ynerr;
+    int *N = (int *)malloc(batch_size * sizeof(int));
+
+    *Jcons = (real_type *) malloc(nfiles * sizeof(real_type));
+    *Jexp  = (real_type *) malloc(nfiles * sizeof(real_type));
+    real_type *Jtemp;
+
+    int bsize = 0, npoints = 0;
+    char msg[MAXBUF];
+    size_t mem = 0;
+    clock_t start;
+    double dt;
+    for(int i = 0; i < nfiles; i++){
+        //printf("reading file %d (%s)\n", i+1, filenames[i]); 
+        //fflush(stdout);
+        sprintf(msg, "reading file %d failed\n", i+1);
+        // read file
+        //start = clock();
+        check_io(read3colDataFile(filenames[i], skiprows, &xn, &yn, 
+               &ynerr, N + bsize), msg);
+        //dt = ((double) (clock() - start))/CLOCKS_PER_SEC;
+
+        //printf("  %e seconds to read file %s\n", dt, filenames[i]);
+
+        if(N[bsize] == 0) {
+            fprintf(stderr, "No points read in from %s\n", filenames[i]);
+            exit(EXIT_FAILURE);
+        }
+
+        npoints += N[bsize];
+        
+        mem = npoints * (4 * sizeof(real_type) + sizeof(int));
+        
+        // add more memory
+        if (npoints == N[bsize]) {
+            x = (real_type *)malloc( npoints * sizeof(real_type));
+            y = (real_type *)malloc( npoints * sizeof(real_type));
+            yerr = (real_type *)malloc( npoints * sizeof(real_type));
+        } else {
+            x = (real_type *)xrealloc(x, npoints * sizeof(real_type));
+            y = (real_type *)xrealloc(y, npoints * sizeof(real_type));
+            yerr = (real_type *)xrealloc(yerr, npoints * sizeof(real_type));
+        }
+
+        // copy new data to array
+        memcpy(x + (npoints - N[bsize]), xn, N[bsize] * sizeof(real_type));
+        memcpy(y + (npoints - N[bsize]), yn, N[bsize] * sizeof(real_type));
+        memcpy(yerr + (npoints - N[bsize]), ynerr, N[bsize] * sizeof(real_type));
+
+        bsize += 1;
+
+        // send off batch
+        if ( (bsize % batch_size == 0) || (i == nfiles - 1) || mem >= memlim ){
+            //printf("sending off batch of size %d\n", bsize);
+
+            //printf("constant\n"); fflush(stdout);
+            //start = clock();
+            // CONSTANT weighting
+            Jtemp = stetson_j_gpu_batch(x, y, yerr, CONSTANT, N, bsize);
+            //dt = ((double) (clock() - start))/CLOCKS_PER_SEC;
+
+            //printf("done. Took %e seconds for %d files = %e/file\n", dt, bsize, dt / ((real_type) bsize));
+            memcpy(*Jcons + (i - bsize + 1), Jtemp, bsize * sizeof(real_type)); 
+            free(Jtemp);
+
+            //printf("exponential\n"); fflush(stdout);
+            // EXPONENTIAL weighting
+            //start = clock();
+            Jtemp = stetson_j_gpu_batch(x, y, yerr, EXP, N, bsize);
+            //dt = ((double) (clock() - start))/CLOCKS_PER_SEC;
+
+            //printf("done. Took %e seconds for %d files = %e/file\n", dt, bsize, dt / ((real_type) bsize));
+            memcpy(*Jexp + (i - bsize + 1), Jtemp, bsize * sizeof(real_type)); 
+            free(Jtemp);
+
+            bsize = 0;
+            npoints = 0;
+            mem = 0;
+            free(x); free(y); free(yerr);
+        }
+
+        // free temporary pointers
+        free(xn); free(yn); free(ynerr);
+    }
+
+    free(N);
+
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "%s version %s\n", argv[0], VERSION);
@@ -248,6 +334,18 @@ int main(int argc, char *argv[]) {
     
     
     char msg[max_len];
+    real_type *Jexp_b, *Jcon_b;
+    clock_t  start;
+    double dt;
+
+    int batch_size = 10000;
+    real_type memlim = 3 * 10E8;
+    //start = clock();
+    run_batch(filenames, nfiles, skiprows, batch_size, memlim, &Jexp_b, &Jcon_b);
+    //dt = ((double) (clock() - start))/CLOCKS_PER_SEC;
+
+    // printf("processed %d files in %e seconds (%e s / file)\n", nfiles, dt, dt/nfiles);
+
     printf("filename J_exp J_cons K ymean ymean_stet\n");
     for(int i = 0; i < nfiles; i++){
         real_type *x, *y, *yerr;
@@ -259,15 +357,15 @@ int main(int argc, char *argv[]) {
             msg
         );
 
-	real_type ymean = mean(y,N);
-	real_type ystetmean = stetson_mean(y, yerr, APARAM, BPARAM, CRITERION, N);
-	real_type K    = stetson_k(y, yerr, N);
-        real_type Jexp = stetson_j_gpu(x, y, yerr, EXP, N);
-        real_type Jcon = stetson_j_gpu(x, y, yerr, CONSTANT, N);
+	   real_type ymean = mean(y,N);
+	   real_type ystetmean = stetson_mean(y, yerr, APARAM, BPARAM, CRITERION, N);
+	   real_type K    = stetson_k(y, yerr, N);
+       //real_type Jexp = stetson_j_gpu(x, y, yerr, EXP, N);
+       //real_type Jcon = stetson_j_gpu(x, y, yerr, CONSTANT, N);
 
         free(x); free(y); free(yerr);
 
-        printf("%s %e %e %e %e %e\n", filenames[i], Jexp, Jcon, K, ymean, ystetmean);
+        printf("%s %e %e %e %e %e\n", filenames[i], Jexp_b[i], Jcon_b[i], K, ymean, ystetmean);
     }
 
     for(int i = 0; i < nfiles; i++) 

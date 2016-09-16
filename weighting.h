@@ -1,7 +1,7 @@
 #ifndef WEIGHTING_H
 #define WEIGHTING_H
 
-// WEIGHTING FUNCTIONS
+// function pointers
 typedef real_type (*weight_function_t)(real_type, real_type, void *);
 
 

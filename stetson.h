@@ -10,6 +10,10 @@ real_type
 stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
               const weight_type WEIGHTING, const int N);
 
+real_type *
+stetson_j_gpu_batch(real_type *x, real_type *y, real_type *err, 
+              const weight_type WEIGHTING, int *N, const int Nsamples);
+
 real_type
 stetson_j_cpu(real_type *x, real_type *y, real_type *err, 
               const weight_type WEIGHTING, const int N);

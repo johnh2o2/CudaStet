@@ -55,3 +55,34 @@ stetson_j_kernel(real_type *x, real_type *delta, real_type *J,
     }
 }
 
+__global__ void
+stetson_j_kernel_batch(real_type *x, real_type *delta, real_type *J, 
+                 real_type *W, weight_function_t w, 
+                 void *weight_params, size_t wparsize, int *N, int Nsample){
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int sample_index;
+
+    int nsum = 0;
+    for (sample_index = 0; sample_index < Nsample; sample_index++) {
+    	nsum += N[sample_index];
+    	if (i < nsum)
+    		break;
+    }
+    
+    if (i < nsum){
+        J[i] = 0;
+        W[i] = 0;
+        void *wpars = (weight_params == NULL) ? NULL
+        			    : (void *) ( ((char *)weight_params) 
+        			    	             + wparsize * sample_index);
+
+        for(int j = i; j < nsum; j++){
+        	add_j_w(x[i], x[j], delta[i], delta[j], w, 
+        		    wpars, &(J[i]), &(W[i]));
+        }
+    }
+}
+
+
+
