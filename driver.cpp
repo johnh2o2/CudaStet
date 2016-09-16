@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "stetson.h"
-
+#include "stetson_mean.h"
+#include "utils.h"
 /** Maximum character buffer length. */
 #define MAXBUF 1000
 
@@ -198,6 +199,7 @@ ioflag read_list(const char* name, char ***list, int *nlines, const int element_
     remove_newline(buffer, element_length);
     sprintf((*list)[i], "%s", buffer);
   }
+  fclose(fp);
 
   return IO_SUCCESS;
 }
@@ -245,24 +247,32 @@ int main(int argc, char *argv[]) {
     int skiprows = atoi(argv[3]);
     
     
-    printf("filename J_exp J_cons\n");
+    char msg[max_len];
+    printf("filename J_exp J_cons K ymean ymean_stet\n");
     for(int i = 0; i < nfiles; i++){
         real_type *x, *y, *yerr;
         int N;
-        char msg[max_len];
         sprintf(msg, "reading %s", filenames[i]);
 
         check_io(
             read3colDataFile(filenames[i], skiprows, &x, &y, &yerr, &N),
             msg
         );
+
+	real_type ymean = mean(y,N);
+	real_type ystetmean = stetson_mean(y, yerr, APARAM, BPARAM, CRITERION, N);
+	real_type K    = stetson_k(y, yerr, N);
         real_type Jexp = stetson_j_gpu(x, y, yerr, EXP, N);
         real_type Jcon = stetson_j_gpu(x, y, yerr, CONSTANT, N);
 
         free(x); free(y); free(yerr);
 
-        printf("%s %e %e\n", filenames[i], Jexp, Jcon);
+        printf("%s %e %e %e %e %e\n", filenames[i], Jexp, Jcon, K, ymean, ystetmean);
     }
+
+    for(int i = 0; i < nfiles; i++) 
+       free(filenames[i]);
+    free(filenames);
 
     return EXIT_SUCCESS;
 }

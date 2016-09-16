@@ -39,8 +39,6 @@ usage: ./CudaStet <filename> <{s, l}> <skiprows>
 ```
 
 
-
-
 To call `stetson_j_{gpu, cpu}`:
 -------------------------------
 Arguments (in order):

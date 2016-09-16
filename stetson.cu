@@ -6,21 +6,13 @@
 #include "stetson_kernel.h"
 #include "utils.h"
 #include "weighting.h"
+#include "stetson_mean.h"
 
+#define STETSON_MEAN 0
 
-// z-scale the data
-void 
-make_delta(real_type *y, real_type *err, real_type *delta, int N) {
-    real_type mu = mean(y, N);
-    int i;
-
-    real_type bias = sqrt(N / ((real_type) (N - 1)));
-    for(i = 0; i < N; i++) 
-    	delta[i] = bias * (y[i] - mu) / err[i];
-}
 
 void 
-get_exp_params(real_type *x, int N, void **params) {
+get_exp_params(real_type *x, const int N, void **params) {
 
 	*params = malloc(2 * sizeof(real_type));
 
@@ -37,8 +29,8 @@ get_exp_params(real_type *x, int N, void **params) {
 }
 
 void 
-get_weighting_gpu(real_type *x, int N, weight_type WEIGHTING, 
-    			   void **params, weight_function_t *w){
+get_weighting_gpu(real_type *x, const int N, const weight_type WEIGHTING, 
+                  void **params, weight_function_t *w){
 
     if (WEIGHTING & EXP) {
     	CUDA_CALL(
@@ -50,7 +42,6 @@ get_weighting_gpu(real_type *x, int N, weight_type WEIGHTING,
     	get_exp_params(x, N, &h_params);
 
     	CUDA_CALL(cudaMalloc(params, 2 * sizeof(real_type)));
-    	//CUDA_CALL(cudaThreadSynchronize());
     	CUDA_CALL(cudaMemcpy((*params), h_params, 
     		                       2 * sizeof(real_type), 
     		                       cudaMemcpyHostToDevice ));
@@ -69,8 +60,8 @@ get_weighting_gpu(real_type *x, int N, weight_type WEIGHTING,
 }
 
 void 
-get_weighting_cpu(real_type *x, int N, weight_type WEIGHTING,
-    			   void **params, weight_function_t *w){
+get_weighting_cpu(real_type *x, const int N, const weight_type WEIGHTING,
+                  void **params, weight_function_t *w){
 
     if (WEIGHTING & EXP) {
     	(*w)      = &exp_weighting;
@@ -86,7 +77,7 @@ get_weighting_cpu(real_type *x, int N, weight_type WEIGHTING,
 // compute Stetson J index (Stetson 1996)
 real_type 
 stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
-              weight_type WEIGHTING, int N){
+              const weight_type WEIGHTING, const int N){
 
     // WEIGHTING FUNCTIONS
     weight_function_t weight_func;
@@ -98,8 +89,11 @@ stetson_j_gpu(real_type *x, real_type *y, real_type *err,
     
     // scale y values
     real_type *delta = (real_type *) malloc(N * sizeof(real_type));
-    make_delta(y, err, delta, N);
+    real_type mu = STETSON_MEAN ? stetson_mean(y, err, APARAM, BPARAM, CRITERION, N)
+                                : mean(y, N);
     
+    make_delta(y, err, mu, delta, N);
+
     // allocate GPU variables
     real_type *deltag, *Jg, *Wg, *xg;
     CUDA_CALL(cudaMalloc((void **)&deltag, N * sizeof(real_type)));
@@ -129,21 +123,32 @@ stetson_j_gpu(real_type *x, real_type *y, real_type *err,
     CUDA_CALL(cudaMemcpy(W, Wg, N * sizeof(real_type), 
     	cudaMemcpyDeviceToHost));
 
+    real_type Jstet =  sum(J, N) / sum(W, N);
+  
     // Free memory
-    CUDA_CALL(cudaFree(Jg));
     CUDA_CALL(cudaFree(deltag));
+    CUDA_CALL(cudaFree(Jg));
+    CUDA_CALL(cudaFree(Wg));
+    CUDA_CALL(cudaFree(xg));
     CUDA_CALL(cudaFree(d_params));
-    
-    return sum(J, N) / sum(W, N);
+
+    free(delta); 
+    free(J);
+    free(W);
+
+    return Jstet;
 }
 
 real_type
 stetson_j_cpu(real_type *x, real_type *y, real_type *err, 
-              weight_type WEIGHTING, int N){
+              const weight_type WEIGHTING, const int N){
 
     // scale y values by mean and variance
     real_type *delta = (real_type *) malloc(N * sizeof(real_type));
-    make_delta(y, err, delta, N);
+    real_type mu = STETSON_MEAN ? stetson_mean(y, err, APARAM, BPARAM, CRITERION, N)
+                                : mean(y, N);
+	
+    make_delta(y, err, mu, delta, N);
 
     // get weighting function and parameters
     weight_function_t weight_func;
@@ -156,15 +161,27 @@ stetson_j_cpu(real_type *x, real_type *y, real_type *err,
     	                               params, N);
 
     // free weight function params
-    if(params != NULL) free(params);
+    if(params != NULL) 
+        free(params);
 
+    free(delta);
     return J;
 }
-/*
+
 real_type
-stetson_k(real_type *y, real_type *err, int N){
+stetson_k(real_type *y, real_type *err, const int N){
+    real_type *delta = (real_type *) malloc(N * sizeof(real_type));
+    real_type mu = STETSON_MEAN ? stetson_mean(y, err, APARAM, BPARAM,  CRITERION, N)
+                                : mean(y, N);
+	
+    make_delta(y, err, mu, delta, N);
 
+    real_type Sabs = 0, Ssq = 0;
+    for(int i = 0; i < N; i++){
+	Sabs += abs(delta[i]);
+	Ssq  += delta[i] * delta[i];
+    }
 
+    free(delta);
+    return (Sabs / N) / sqrt(Ssq / N);
 }
-*/
-
