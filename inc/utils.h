@@ -1,6 +1,7 @@
 
 #ifndef UTILS_H
 #define UTILS_H
+#include "config.h"
 
 real_type 
 mean(real_type *x, const int N);

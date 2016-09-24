@@ -14,7 +14,7 @@ add_j_w(real_type x1, real_type x2, real_type d1, real_type d2,
 	if (d < 0)
 		s = -1.0;
 
-	real_type wv = (*w)(x1, x2, wpars);
+	real_type wv = (*w)(x1, x2, d1, d2, wpars);
 	(*Wval) += wv;
 	(*Jval) += wv * s * sqrt(s * d);
 

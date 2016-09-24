@@ -1,9 +1,12 @@
 #ifndef STETSON_H
 #define STETSON_H
 
+#include "config.h"
+
 enum weight_type {
   EXP = 0x01,
   CONSTANT = 0x02,
+  EXPXY = 0x04
 };
 
 real_type 

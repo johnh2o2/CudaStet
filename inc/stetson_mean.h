@@ -1,6 +1,6 @@
 #ifndef STETSON_MEAN_H
 #define STETSON_MEAN_H
-
+#include "config.h"
 // default parameters
 #define APARAM 2.0
 #define BPARAM 2.0

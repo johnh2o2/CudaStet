@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "config.h"
 #include "stetson.h"
 #include "stetson_mean.h"
 #include "utils.h"
@@ -206,7 +207,7 @@ void check_io(ioflag fl, const char *task){
 
 void
 run_batch( char **filenames, const int nfiles, const int skiprows, const int batch_size,
-            const size_t memlim, real_type **Jexp, real_type **Jcons ){
+            const size_t memlim, real_type **Jexp, real_type **Jcons, real_type **Jexpxy ){
 
     real_type *x, *y, *yerr;
     real_type *xn, *yn, *ynerr;
@@ -214,6 +215,7 @@ run_batch( char **filenames, const int nfiles, const int skiprows, const int bat
 
     *Jcons = (real_type *) malloc(nfiles * sizeof(real_type));
     *Jexp  = (real_type *) malloc(nfiles * sizeof(real_type));
+    *Jexpxy = (real_type *)malloc(nfiles * sizeof(real_type));
     real_type *Jtemp;
 
     int bsize = 0, npoints = 0;
@@ -284,6 +286,11 @@ run_batch( char **filenames, const int nfiles, const int skiprows, const int bat
             memcpy(*Jexp + (i - bsize + 1), Jtemp, bsize * sizeof(real_type)); 
             free(Jtemp);
 
+	    Jtemp = stetson_j_gpu_batch(x, y, yerr, EXPXY, N, bsize);
+            memcpy(*Jexpxy + (i - bsize + 1), Jtemp, bsize * sizeof(real_type));
+	    free(Jtemp);
+
+
             bsize = 0;
             npoints = 0;
             mem = 0;
@@ -334,19 +341,19 @@ int main(int argc, char *argv[]) {
     
     
     char msg[max_len];
-    real_type *Jexp_b, *Jcon_b;
+    real_type *Jexp_b, *Jcon_b, *Jexpxy_b;
     clock_t  start;
     double dt;
 
     int batch_size = 10000;
     real_type memlim = 3 * 10E8;
     //start = clock();
-    run_batch(filenames, nfiles, skiprows, batch_size, memlim, &Jexp_b, &Jcon_b);
+    run_batch(filenames, nfiles, skiprows, batch_size, memlim, &Jexp_b, &Jcon_b, &Jexpxy_b);
     //dt = ((double) (clock() - start))/CLOCKS_PER_SEC;
 
     // printf("processed %d files in %e seconds (%e s / file)\n", nfiles, dt, dt/nfiles);
 
-    printf("filename J_exp J_cons K ymean ymean_stet\n");
+    printf("filename J_exp J_cons J_expxy K ymean ymean_stet\n");
     for(int i = 0; i < nfiles; i++){
         real_type *x, *y, *yerr;
         int N;
@@ -365,7 +372,7 @@ int main(int argc, char *argv[]) {
 
         free(x); free(y); free(yerr);
 
-        printf("%s %e %e %e %e %e\n", filenames[i], Jexp_b[i], Jcon_b[i], K, ymean, ystetmean);
+        printf("%s %e %e %e %e %e %e\n", filenames[i], Jexp_b[i], Jcon_b[i], Jexpxy_b[i], K, ymean, ystetmean);
     }
 
     for(int i = 0; i < nfiles; i++) 

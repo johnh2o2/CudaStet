@@ -20,7 +20,7 @@ get_exp_params(real_type *x, const int N, void **params, size_t *paramsize) {
 	// get array of t_i - t_{i-1}
 	real_type dt[N-1];
 	for(int i = 0; i < N - 1; i++) 
-		dt[i] = x[i+1] - x[i];
+		dt[i] = abs(x[i+1] - x[i]);
 
 	// param 1: inverse of mean(dt)
 	((real_type *)(*params))[0] = 1./median(dt, N-1);
@@ -29,17 +29,54 @@ get_exp_params(real_type *x, const int N, void **params, size_t *paramsize) {
 	((real_type *)(*params))[1] = 1;
 }
 
+void
+get_expxy_params(real_type *x, real_type *y, const int N, void **params, size_t *paramsize) {
+	void *paramx, *paramy;
+	size_t xsize, ysize;
+	
+	// gets exponential weighting params for both x and y
+	get_exp_params(x, N, &paramx, &xsize);
+	get_exp_params(y, N, &paramy, &ysize);
+
+	// now combine the two params
+	(*paramsize) = xsize + ysize;
+	
+	// allocate
+	*params = malloc(*paramsize);
+
+	// copy x
+	memcpy(*params, paramx, xsize);
+	
+	// hack so we can do void pointer arithmetic
+	void *ptry = (void *) (((char *) *params) + xsize);
+	
+	// copy y
+	memcpy(ptry, paramy, ysize);
+
+	// free
+	free(paramx); free(paramy);
+}
+
+
 void 
-get_weighting_gpu_batch(real_type *x, int *N, const int Nsamples, 
+get_weighting_gpu_batch(real_type *x, real_type *y, int *N, const int Nsamples, 
                         const weight_type WEIGHTING, void **params, 
                         weight_function_t *w, size_t *paramsize){
 
-    if (WEIGHTING & EXP) {
+    if ((WEIGHTING & EXP) || (WEIGHTING & EXPXY)) {
         // get device function pointer
-        CUDA_CALL(
-            cudaMemcpyFromSymbol(w, p_exp_weighting, 
+	if (WEIGHTING & EXP) {
+        	CUDA_CALL(
+         	   cudaMemcpyFromSymbol(w, p_exp_weighting_x, 
                                 sizeof(weight_function_t) )
-        );
+        	);
+	}
+	else if (WEIGHTING & EXPXY) {
+        	CUDA_CALL(
+         	   cudaMemcpyFromSymbol(w, p_exp_weighting_x_and_y, 
+                                sizeof(weight_function_t) )
+        	);
+	}
 
         void *h_params, *h_params_temp;
 
@@ -51,7 +88,12 @@ get_weighting_gpu_batch(real_type *x, int *N, const int Nsamples,
         int npts = 0;
         // get params for each sample
         for(int i = 0; i < Nsamples; i++){
-            get_exp_params(x + npts, N[i], &h_params_temp, paramsize);
+	    if (WEIGHTING & EXP)
+                get_exp_params(x + npts, N[i], &h_params_temp, paramsize);
+
+	    else if (WEIGHTING & EXPXY) 
+                get_expxy_params(x + npts, y + npts, N[i], &h_params_temp, paramsize);
+
             if (i == 0)
                 h_params = malloc(Nsamples * (*paramsize));
 
@@ -88,27 +130,28 @@ get_weighting_gpu_batch(real_type *x, int *N, const int Nsamples,
 }
 
 void 
-get_weighting_gpu(real_type *x, const int N, const weight_type WEIGHTING, 
+get_weighting_gpu(real_type *x, real_type *y, const int N, const weight_type WEIGHTING, 
                   void **params, weight_function_t *w, size_t *paramsize){
+    void *h_params;
 
     if (WEIGHTING & EXP) {
     	CUDA_CALL(
-    		cudaMemcpyFromSymbol(w, p_exp_weighting, 
-    	                        sizeof(weight_function_t) )
+    		cudaMemcpyFromSymbol(w, p_exp_weighting_x, 
+    		                       sizeof(weight_function_t) )
     	);
-
-    	void *h_params;
-    	get_exp_params(x, N, &h_params, paramsize);
-
-    	CUDA_CALL(cudaMalloc(params, *paramsize));
-    	CUDA_CALL(cudaMemcpy((*params), h_params, *paramsize, 
-    		                       cudaMemcpyHostToDevice ));
-    	free(h_params);
+	get_exp_params(x, N, &h_params, paramsize);
+    }
+    else if (WEIGHTING & EXPXY) {
+    	CUDA_CALL(
+    		cudaMemcpyFromSymbol(w, p_exp_weighting_x_and_y, 
+    	                               sizeof(weight_function_t) )
+    	);
+	get_expxy_params(x, y, N, &h_params, paramsize);
     }
     else if (WEIGHTING & CONSTANT) {
     	CUDA_CALL(
     		cudaMemcpyFromSymbol(w, p_constant_weighting, 
-    	                        sizeof(weight_function_t) )
+    	                              sizeof(weight_function_t) )
     	);
 
     	(*params) = NULL;
@@ -116,15 +159,26 @@ get_weighting_gpu(real_type *x, const int N, const weight_type WEIGHTING,
 
     }
 
+    // clean up
+    if (!(WEIGHTING & CONSTANT)) {
+    	CUDA_CALL(cudaMalloc(params, *paramsize));
+    	CUDA_CALL(cudaMemcpy((*params), h_params, *paramsize, 
+    		                       cudaMemcpyHostToDevice ));
+    	free(h_params);
+    }
 }
 
 void 
-get_weighting_cpu(real_type *x, const int N, const weight_type WEIGHTING,
+get_weighting_cpu(real_type *x, real_type *y, const int N, const weight_type WEIGHTING,
                   void **params, weight_function_t *w, size_t *paramsize){
 
     if (WEIGHTING & EXP) {
-    	(*w)      = &exp_weighting;
+    	(*w)      = &exp_weighting_x;
     	get_exp_params(x, N, params, paramsize);
+    }
+    else if (WEIGHTING & EXPXY) {
+	(*w)      = &exp_weighting_x_and_y;
+	get_expxy_params(x, y, N, params, paramsize);
     }
     else if (WEIGHTING & CONSTANT) {
     	(*w)      = &constant_weighting;
@@ -136,16 +190,6 @@ get_weighting_cpu(real_type *x, const int N, const weight_type WEIGHTING,
 real_type *
 stetson_j_gpu_batch(real_type *x, real_type *y, real_type *err, 
               const weight_type WEIGHTING, int *N, const int Nsamples){
-
-    // WEIGHTING FUNCTIONS
-    weight_function_t weight_func;
-    void *d_params = NULL;
-    size_t psize;
-
-    
-    get_weighting_gpu_batch(x, N, Nsamples, WEIGHTING, &d_params, 
-                            &weight_func, &psize);
-
 
     // compute total number of observations
     int npoints = 0;
@@ -163,6 +207,15 @@ stetson_j_gpu_batch(real_type *x, real_type *y, real_type *err,
         make_delta(y + npts, err + npts, mu, delta + npts, N[i]);
         npts += N[i];
     }
+
+    // WEIGHTING FUNCTIONS
+    weight_function_t weight_func;
+    void *d_params = NULL;
+    size_t psize;
+
+
+    get_weighting_gpu_batch(x, delta, N, Nsamples, WEIGHTING, &d_params,
+                            &weight_func, &psize);
     
     //printf("npoints = %d\n", npoints); fflush(stdout);
 
@@ -229,22 +282,21 @@ real_type
 stetson_j_gpu(real_type *x, real_type *y, real_type *err, 
               const weight_type WEIGHTING, const int N){
 
-    // WEIGHTING FUNCTIONS
-    weight_function_t weight_func;
-    void *d_params = NULL;
-    size_t psize;
-
-
-    get_weighting_gpu(x, N, WEIGHTING, &d_params, &weight_func, &psize);
-    //////
-
-    
     // scale y values
     real_type *delta = (real_type *) malloc(N * sizeof(real_type));
     real_type mu = STETSON_MEAN ? stetson_mean(y, err, APARAM, BPARAM, CRITERION, N)
                                 : mean(y, N);
     
     make_delta(y, err, mu, delta, N);
+
+    // WEIGHTING FUNCTIONS
+    weight_function_t weight_func;
+    void *d_params = NULL;
+    size_t psize;
+
+
+    get_weighting_gpu(x, delta, N, WEIGHTING, &d_params, &weight_func, &psize);
+    //////
 
     // allocate GPU variables
     real_type *deltag, *Jg, *Wg, *xg;
@@ -307,7 +359,7 @@ stetson_j_cpu(real_type *x, real_type *y, real_type *err,
     void *params = NULL;
     size_t psize = 0;
 
-    get_weighting_cpu(x, N, WEIGHTING, &params, &weight_func, &psize);
+    get_weighting_cpu(x, delta, N, WEIGHTING, &params, &weight_func, &psize);
 
     // compute J
     real_type J = stetson_j_kernel_cpu(x, delta, weight_func, 

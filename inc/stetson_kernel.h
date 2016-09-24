@@ -2,7 +2,7 @@
 #define STETSON_KERNEL_H
 #include <stdio.h>
 #include "weighting.h"
-
+#include "config.h"
 
 // This may also be implemented somewhere in CUDA, but this ensures that it exists and we can
 // customize it ourselves. Pulled this from somewhere on StackExchange, can't find the original post!!

@@ -2,7 +2,7 @@ import numpy as np
 import sys
 from math import *
 
-def stetson_j(y, err):
+def stetson_j(t, y, err):
 	bias = sqrt(len(y) / (float(len(y)) - 1))
 	delta = bias * np.multiply(y - np.mean(y),np.power( err, -1))
 	
@@ -21,6 +21,6 @@ if __name__ == '__main__':
 		dtype=np.dtype([ ('t', float), 
 			  ('y', float), ('err', float) ]))
 	
-	print 'Stetson J (Pyth) : %e' %( stetson_j(Lc['y'], 
+	print 'Stetson J (Pyth) : %e' %( stetson_j(None, Lc['y'], 
 	                                          Lc['err']) )
 	
