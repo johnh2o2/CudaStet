@@ -6,15 +6,20 @@ from time import time
 import sys
 
 N = 1000
-Nlcs = 3
+Nlcs = 5
 
 weight_types = [ 'constant', 'exp', 'expxy' ]
 
 X = [ np.linspace(0, 2 * np.pi, N) for i in range(Nlcs) ]
 Y = [ np.cos(x) + np.random.normal(size=len(x)) for x in X ]
 ERR = [ 1 * np.ones(len(x)) for x in X ]
-print ERR[0][0]
+#print ERR[0][0]
+#hatid = "HAT-036-0000050"
+#fname = '/home/jah5/Documents/projects/OB_stars2/lcs/{hatid}_TF3.txt'.format(hatid=hatid)
+#data = np.loadtxt(fname, dtype=np.dtype([ ('t', float), ('mag', float), ('err', float) ]), skiprows=1)
+#X, Y, ERR = [ data['t'] ], [ data['mag'] ], [ data['err'] ]
 
+#print ERR[0][0]
 
 # GPU TESTS
 print "simple GPU stetson test (one lightcurve)"

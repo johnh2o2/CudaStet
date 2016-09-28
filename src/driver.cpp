@@ -353,6 +353,11 @@ int main(int argc, char *argv[]) {
 
     // printf("processed %d files in %e seconds (%e s / file)\n", nfiles, dt, dt/nfiles);
 
+    if (sizeof(real_type) == sizeof(double))
+	printf("DOUBLE PRECISION\n");
+    else
+	printf("SINGLE PRECISION\n");
+
     printf("filename J_exp J_cons J_expxy K ymean ymean_stet\n");
     for(int i = 0; i < nfiles; i++){
         real_type *x, *y, *yerr;

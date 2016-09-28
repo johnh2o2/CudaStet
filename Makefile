@@ -68,18 +68,20 @@ all : $(NAME)
 $(NAME) : $(CU_OBJ_FILES) $(CPP_OBJ_FILES) $(BUILDDIR)/dlink.o
 	$(CC) $(CFLAGS) $(INCLUDE) -o $(BINDIR)/$@ $^ $(LIBS) -largtable2
 
-$(PYDIR)/$(PY_NAME)_wrap.o : 
-	swig -python -c++ -o $(PYDIR)/$(PY_NAME)_wrap.cxx -I$(HEADERDIR) $(PYDIR)/$(PY_NAME).i
-	$(CC) $(CFLAGS) $(INCLUDE) $(PYTHON_INCLUDE) -c $(PYDIR)/$(notdir $(subst .o,.cxx,$@)) -o $(PYDIR)/$(notdir $@)
+# This is taken care of in setup.py now
+#$(PYDIR)/$(PY_NAME)_wrap.o : 
+#	swig -python -c++ -o $(PYDIR)/$(PY_NAME)_wrap.cxx -I$(HEADERDIR) $(PYDIR)/$(PY_NAME).i
+#	$(CC) $(CFLAGS) $(INCLUDE) $(PYTHON_INCLUDE) -c $(PYDIR)/$(notdir $(subst .o,.cxx,$@)) -o $(PYDIR)/$(notdir $@)
 
 shlib : $(LIBOBJS)
 	$(CC) -shared -o $(LIBDIR)/$(LIB_NAME) $^ $(LIBS)
 
 $(LIB_NAME) : shlib
 
-python : $(PYDIR)/$(PY_NAME)_wrap.o $(LIB_NAME)
-	$(CC) -shared -o $(PYDIR)/_$(PY_NAME).so $^ $(LIBS) -L. -l$(NAME)
-	echo "from $(PYDIR) import *" > $(PYDIR)/__init__.py
+# This is taken care of in setup.py now
+#python : $(PYDIR)/$(PY_NAME)_wrap.o $(LIB_NAME)
+#	$(CC) -shared -o $(PYDIR)/_$(PY_NAME).so $^ $(LIBS) -L. -l$(NAME)
+#	echo "from $(PYDIR) import *" > $(PYDIR)/__init__.py
 	
 $(BUILDDIR)/dlink.o : $(CU_OBJ_FILES)
 	$(NVCC) $(NVCCFLAGS) $(INCLUDE) -dlink $^ -o $@
@@ -100,7 +102,7 @@ $(CPP_OBJ_FILES) :
 RM=rm -f
 
 clean-all : clean clean-python
-	$(RM) *.dat *.png *.pyc
+	$(RM) *.dat *.png *.pyc test/*pyc
 
 clean : 
 	$(RM) -r $(BUILDDIR)/* $(NAME) $(LIBDIR)/*so 
@@ -108,7 +110,7 @@ clean :
 clean-python :
 	$(RM) -r $(PYDIR)/$(PY_NAME).py $(PYDIR)/__init__.py \
 		$(PYDIR)/$(PY_NAME)_wrap.cpp $(PYDIR)/*pyc \
-                $(PYDIR)/*o dist/
+                $(PYDIR)/*o dist/ $(PYDIR)/__pycache__
 
 uninstall :
 	$(RM) $(INSTALL_LIBDIR)/$(LIB_NAME)

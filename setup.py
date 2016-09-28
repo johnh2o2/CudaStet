@@ -23,6 +23,7 @@ if find_in_path('swig', os.environ['PATH']):
 else:
     raise EnvironmentError('the swig executable was not found in your PATH')
 
+
 VERSION=open('VERSION.txt', 'r').read().strip('\n')
 macros = dict(VERSION=VERSION)
 sources = [wrap_file]
@@ -35,6 +36,8 @@ ext = Extension('_cudastet',
                 extra_compile_args= [ '-fPIC', '-O3' ] ,
                 include_dirs = [ '/usr/local/include/custet' ])
 
+f = open('cudastet/__init__.py', 'w')
+f.write('__version__ = "{VERSION}"\n'.format(VERSION=VERSION))
 
 setup(name='cudastet',
 

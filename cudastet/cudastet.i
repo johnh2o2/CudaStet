@@ -20,8 +20,8 @@ real_type *get_real_type_array(int n){
 real_type get_val(real_type *x,int i){
         return x[i];
 }
-void set_val(real_type *x, int i, float val){
-        x[i] = (real_type) val;
+void set_val(real_type *x, int i, real_type val){
+        x[i] = val;
 }
 void free_real_type_array(real_type *arr){
         free(arr);
